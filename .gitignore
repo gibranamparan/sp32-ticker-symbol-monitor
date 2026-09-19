@@ -1,0 +1,31 @@
+# --- Rust / Cargo ---
+/target
+# Cargo.lock is intentionally tracked: firmware is an application, not a library.
+
+# --- ESP-IDF (esp-idf-svc / embuild) ---
+# ESP-IDF framework + tools downloaded by the build script (GBs)
+/.embuild
+/.espressif
+# Generated sdkconfig (sdkconfig.defaults is the tracked source of truth)
+/sdkconfig
+sdkconfig.old
+*.old
+
+# --- Wokwi simulator outputs ---
+# Logic analyzer capture (default name) and screenshots
+wokwi.vcd
+*.vcd
+screenshot.png
+screenshot-*.png
+
+# --- Local secrets ---
+# WiFi credentials are passed as build-time env; never commit them
+.env
+.env.*
+*.local
+
+# --- Editor / OS ---
+.idea/
+.vscode/
+*.swp
+.DS_Store
