@@ -9,7 +9,7 @@ CONFIG_FREERTOS_IDLE_TASK_STACKSIZE=4096
 # that allocate large stack variables
 CONFIG_PTHREAD_TASK_STACK_SIZE_DEFAULT=4096
 
-# 4MB flash with a large factory app partition (TLS stack + app code)
+# 4MB flash with the built-in large single-factory-app partition table
+# (3MB app). Note: esp-idf-sys does NOT support CONFIG_PARTITION_TABLE_CUSTOM.
 CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
-CONFIG_PARTITION_TABLE_CUSTOM=y
-CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+CONFIG_PARTITION_TABLE_SINGLE_APP_LARGE=y
