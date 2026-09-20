@@ -49,6 +49,22 @@ Useful flags: `--serial-log-file <file>`, `--expect-text <text>` (CI-style pass/
 
 Note: Wokwi loads the app through ESP-IDF's `flasher_args.json`; because `cargo` re-links the Rust ELF after ESP-IDF's cmake step, `scripts/prepare-wokwi.sh` regenerates the app image (`esptool elf2image`) from the current ELF before each run.
 
+## Flash to hardware
+
+Create your credentials file once (gitignored, never committed):
+
+```bash
+cp toml.production.example toml.production   # then edit in your SSID/password
+```
+
+Build, flash, and monitor over USB — with those credentials overriding the Wokwi ones:
+
+```bash
+./scripts/hw.sh
+```
+
+This is the only path that reads `toml.production` (passed to cargo as a `--config` fragment, which takes precedence over `.cargo/config.toml`). Simulation builds (`scripts/sim.sh`, plain `cargo build`) always use `WIFI_SSID`/`WIFI_PASS` from `.cargo/config.toml` (`Wokwi-GUEST`). A shell-exported `WIFI_SSID`/`WIFI_PASS` overrides everything (cargo `[env]` semantics).
+
 ## Layout
 
 - `src/main.rs` — firmware: WiFi connect, ILI9341 UI task, Coinbase fetch task (shared state via `Arc<Mutex<AppState>>`)
@@ -65,7 +81,9 @@ The `price` crate is pure std, so tests run on the host (the repo pins the xtens
 cargo +stable test -p price --target x86_64-unknown-linux-gnu
 ```
 
-## Known Wokwi limitation
+## TLS notes (ESP32 classic)
 
-The Wokwi cloud simulator's virtual network link is slow: the Coinbase TLS handshake (its ~3.5 KB ECDSA certificate chain alone transfers for ~10 sim-seconds) can be reset by the gateway/server before completing. On real hardware the same handshake takes well under a second. When a sim run shows `ERROR` on the display with `Price update failed: ESP_ERR_HTTP_CONNECT` in serial, the firmware is fine — the fetch retries every 10 s, and a sim run under lighter cloud load may succeed.
+The classic ESP32 has a hardware RSA accelerator but **no ECC/ECDSA accelerator**. Cloudflare (api.coinbase.com's edge) kills TLS handshakes that take more than ~13 s, and a software-ECDSA handshake — which is what gets negotiated by default — takes ~16 sim-seconds in Wokwi (the emulated CPU is ~100x slower than real silicon). The firmware therefore pins the TLS client to RSA suites (`CONFIG_MBEDTLS_KEY_EXCHANGE_ECDHE_ECDSA is not set` in `sdkconfig.defaults`): the server then serves its RSA chain (`coinbase.com` ← GTS WR1), verified against the embedded GTS Root R1 anchor using the hardware MPI, completing in ~4 sim-seconds.
+
+Gotchas if you change mbedtls config: disabling a symbol in `sdkconfig.defaults` requires the `# CONFIG_X is not set` form (a `CONFIG_X=n` line is ignored), and the `esp-idf-sys` build script may need `cargo clean --release -p esp-idf-sys` to actually pick the change up.
 

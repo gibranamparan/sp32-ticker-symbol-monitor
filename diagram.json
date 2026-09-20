@@ -1,40 +1,30 @@
 {
-    "version": 1,
-    "editor": "wokwi",
-    "author": "sp32-demo1",
-    "parts": [
-        {
-            "type": "wokwi-esp32-devkit-v1",
-            "id": "esp",
-            "top": 0.59,
-            "left": 0.67,
-            "attrs": {
-                "flashSize": "4"
-            }
-        },
-        {
-            "type": "wokwi-ili9341",
-            "id": "lcd",
-            "top": -150,
-            "left": 180,
-            "attrs": {}
-        }
-    ],
-    "connections": [
-        [ "esp:TX0", "$serialMonitor:RX", "", [] ],
-        [ "esp:RX0", "$serialMonitor:TX", "", [] ],
-        [ "esp:D18", "lcd:SCK", "orange", [ "v0" ] ],
-        [ "esp:D19", "lcd:MISO", "purple", [ "v0" ] ],
-        [ "esp:D23", "lcd:MOSI", "blue", [ "v0" ] ],
-        [ "esp:D5", "lcd:CS", "green", [ "v0" ] ],
-        [ "esp:D2", "lcd:D/C", "yellow", [ "v0" ] ],
-        [ "esp:D4", "lcd:RST", "white", [ "v0" ] ],
-        [ "esp:D21", "lcd:LED", "gold", [ "v0" ] ],
-        [ "esp:3V3", "lcd:VCC", "red", [ "v0" ] ],
-        [ "esp:GND.1", "lcd:GND", "black", [ "v0" ] ]
-    ],
-    "serialMonitor": {
-        "display": "terminal",
-        "convertEol": true
-    }
+  "version": 1,
+  "author": "sp32-demo1",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "wokwi-esp32-devkit-v1",
+      "id": "esp",
+      "top": -129.7,
+      "left": -187.4,
+      "attrs": { "flashSize": "4" }
+    },
+    { "type": "wokwi-ili9341", "id": "lcd", "top": -191.2, "left": 124.5, "attrs": {} }
+  ],
+  "connections": [
+    [ "esp:TX0", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX0", "$serialMonitor:TX", "", [] ],
+    [ "esp:D18", "lcd:SCK", "orange", [ "v0" ] ],
+    [ "esp:D19", "lcd:MISO", "purple", [ "v0" ] ],
+    [ "esp:D23", "lcd:MOSI", "blue", [ "v0" ] ],
+    [ "esp:D5", "lcd:CS", "green", [ "v0" ] ],
+    [ "esp:D2", "lcd:D/C", "yellow", [ "v0" ] ],
+    [ "esp:D4", "lcd:RST", "white", [ "v0" ] ],
+    [ "esp:D21", "lcd:LED", "gold", [ "v0" ] ],
+    [ "esp:3V3", "lcd:VCC", "red", [ "v0" ] ],
+    [ "esp:GND.1", "lcd:GND", "black", [ "v0" ] ]
+  ],
+  "serialMonitor": { "convertEol": true, "display": "terminal" },
+  "dependencies": {}
 }

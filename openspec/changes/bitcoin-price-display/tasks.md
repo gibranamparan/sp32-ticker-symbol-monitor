@@ -26,16 +26,16 @@
 ## 5. Price fetching
 
 - [x] 5.1 Implement WiFi station connect using build-time SSID/password config, with retry on failure
-- [ ] 5.2 Embed the root CA for `api.coinbase.com` and fetch `GET /v2/prices/BTC-USD/spot` over HTTPS via `EspHttpClient` (ESP-IDF mbedTLS; reqwest has no Xtensa TLS backend — see design.md decision 1)
+- [x] 5.2 Embed the root CA for `api.coinbase.com` and fetch `GET /v2/prices/BTC-USD/spot` over HTTPS via `EspHttpClient` (ESP-IDF mbedTLS; reqwest has no Xtensa TLS backend — see design.md decision 1)
 - [x] 5.3 Parse the response with `serde_json` into a price value; format with thousands separator
 - [x] 5.4 Unit test the parser against a recorded real response fixture (and malformed-body cases); test on host (`cargo test`)
 
 ## 6. Application loop
 
 - [x] 6.1 Define shared app state (current price / error state) between fetch and UI tasks
-- [ ] 6.2 Implement the fetch task: connect → fetch → update state → sleep 10 s → repeat
-- [ ] 6.3 Implement the UI task: waiting state at startup, big price on success, error state on failure with no known price, atomic full-frame redraws
-- [ ] 6.4 End-to-end run in Wokwi: price from Coinbase appears on the virtual display and updates
+- [x] 6.2 Implement the fetch task: connect → fetch → update state → sleep 10 s → repeat
+- [x] 6.3 Implement the UI task: waiting state at startup, big price on success, error state on failure with no known price, atomic full-frame redraws
+- [x] 6.4 End-to-end run in Wokwi: price from Coinbase appears on the virtual display and updates
 
 ## 7. Hardware bring-up
 

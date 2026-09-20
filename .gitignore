@@ -23,6 +23,7 @@ screenshot-*.png
 .env
 .env.*
 *.local
+toml.production
 
 # --- Editor / OS ---
 .idea/

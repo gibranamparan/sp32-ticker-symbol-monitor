@@ -10,6 +10,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# ESP-IDF builds need the esp toolchain env, and a python with a working
+# venv (the system python may lack ensurepip), for the IDF python env.
+[ -f "$HOME/export-esp.sh" ] && . "$HOME/export-esp.sh"
+[ -d "$HOME/.local/python312/bin" ] && export PATH="$HOME/.local/python312/bin:$PATH"
+
 PROFILE="${1:-release}"
 TARGET_DIR="target/xtensa-esp32-espidf/$PROFILE"
 ELF="$TARGET_DIR/sp32-demo1"

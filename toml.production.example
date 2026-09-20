@@ -1,0 +1,15 @@
+# Production WiFi credentials for real-hardware builds.
+#
+# Copy this file to `toml.production` and fill in real values:
+#     cp toml.production.example toml.production
+#
+# `toml.production` is gitignored (it holds your real password). It is only
+# applied when building through the hardware path:
+#     scripts/hw.sh        (== cargo run --release --config toml.production)
+#
+# Simulation builds (scripts/sim.sh, plain `cargo build`) never see this file
+# and keep using WIFI_SSID/WIFI_PASS from .cargo/config.toml (Wokwi-GUEST).
+
+[env]
+WIFI_SSID = "your-home-ssid"
+WIFI_PASS = "your-wpa2-password"

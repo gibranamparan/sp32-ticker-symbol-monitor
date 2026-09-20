@@ -33,8 +33,9 @@ use std::time::Duration;
 
 const SPOT_URL: &str = "https://api.coinbase.com/v2/prices/BTC-USD/spot";
 
-// Self-signed GTS Root R4 (pki.goog), the trust anchor for api.coinbase.com.
-// The file MUST keep its trailing NUL byte: X509::pem_until_nul scans for it.
+// Self-signed GTS Root R1 (pki.goog), the trust anchor for the RSA chain
+// served to RSA-only TLS clients by api.coinbase.com. The file MUST keep its
+// trailing NUL byte: X509::pem_until_nul scans for it.
 const COINBASE_ROOT_CA: &[u8] = include_bytes!("../certs/coinbase-root-ca.pem");
 
 /// Logical (rotated) display width in pixels: 320x240 landscape.
@@ -315,7 +316,7 @@ fn main() -> Result<()> {
     let mut display = Builder::new(ILI9341Rgb565, di)
         .reset_pin(&mut rst)
         .color_order(ColorOrder::Bgr)
-        .orientation(Orientation::new().rotate(Rotation::Deg270))
+        .orientation(Orientation::new().rotate(Rotation::Deg270).flip_horizontal())
         .init(&mut FreeRtos)
         .map_err(|e| anyhow::anyhow!("display init failed: {e:?}"))?;
 

@@ -14,7 +14,15 @@ CONFIG_PTHREAD_TASK_STACK_SIZE_DEFAULT=4096
 CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
 CONFIG_PARTITION_TABLE_SINGLE_APP_LARGE=y
 
-# Temporary TLS diagnostics: see the mbedTLS handshake trace over serial
-CONFIG_LOG_DEFAULT_LEVEL=3
-CONFIG_MBEDTLS_DEBUG=y
-CONFIG_MBEDTLS_DEBUG_LEVEL=3
+# Max CPU speed: the TLS handshake's software ECDSA is the slowest step,
+# and the Wokwi sim's server-side handshake timeout makes every cycle count
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+
+# RSA-only TLS: the classic ESP32 verifies RSA with the hardware MPI
+# accelerator but has NO ECC/ECDSA accelerator, and the Wokwi sim's emulated
+# CPU is ~100x slower than real silicon - a software-ECDSA handshake blows
+# past the server's ~13 s handshake timeout. Disabling ECDSA client-side
+# makes the server serve its RSA chain (coinbase.com <- GTS WR1), verified
+# against GTS Root R1 in certs/coinbase-root-ca.pem.
+# CONFIG_MBEDTLS_ECDSA_C is not set
+# CONFIG_MBEDTLS_KEY_EXCHANGE_ECDHE_ECDSA is not set

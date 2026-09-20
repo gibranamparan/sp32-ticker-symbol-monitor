@@ -5,6 +5,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+if [ -z "${WOKWI_CLI_TOKEN:-}" ] && [ -f "$HOME/.config/wokwi/token.env" ]; then
+  . "$HOME/.config/wokwi/token.env"
+fi
+
 if [ -z "${WOKWI_CLI_TOKEN:-}" ]; then
   echo "error: WOKWI_CLI_TOKEN is not set (see README.md)" >&2
   exit 1
