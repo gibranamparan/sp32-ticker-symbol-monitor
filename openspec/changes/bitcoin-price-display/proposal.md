@@ -7,7 +7,7 @@ The project needs its first application: a Rust firmware for the ESP-WROOM-32E t
 - New Rust firmware crate targeting the ESP32 (classic, Xtensa) using the std stack (`esp-idf-svc`/`esp-idf-hal` on ESP-IDF/FreeRTOS).
 - Joins a WiFi network in station mode and fetches the BTC-USD spot price from the Coinbase public API over HTTPS (no API key).
 - Renders the price as large text on a 240×320 ILI9341 display over SPI (`mipidsi` + `embedded-graphics`).
-- Refreshes the price every 60 seconds; on network/API failure, draws an error state on screen instead of the price and retries.
+- Refreshes the price every 10 seconds; on network/API failure, draws an error state on screen instead of the price and retries.
 - Wokwi simulation setup (`wokwi.toml`, `diagram.json`) with the virtual ESP32 + ILI9341, so the same binary that runs on hardware runs in the simulator with real network access through the Wokwi IoT Gateway.
 - Toolchain bootstrap: Xtensa Rust fork via `espup`, `ldproxy`.
 
@@ -26,6 +26,6 @@ The project needs its first application: a Rust firmware for the ESP-WROOM-32E t
 
 - New crate scaffolded from `esp-idf-template` (std) at the repo root; all application code is new.
 - New dev dependencies of the workflow: `espup`, `ldproxy`, Wokwi CLI (external tools, not code).
-- Rust dependencies: `esp-idf-svc`, `esp-idf-hal`, `mipidsi`, `embedded-graphics`, `embedded-hal`, `reqwest` (with `esp-mbedtls` TLS), `serde`/`serde_json`.
+- Rust dependencies: `esp-idf-svc`, `esp-idf-hal`, `mipidsi`, `embedded-graphics`, `embedded-hal`, `serde`/`serde_json`. HTTPS via ESP-IDF's built-in `EspHttpClient` (mbedTLS) with an embedded root CA — reqwest was dropped during apply: no TLS backend for reqwest runs on Xtensa.
 - External services: `api.coinbase.com` spot price endpoint; Wokwi IoT Gateway (free account token required).
 - Hardware assumed: ESP-WROOM-32E on a standard 38-pin DevKit + ILI9341 module wired to VSPI (pins pinned in design.md).

@@ -1064,6 +1064,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "price"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "proc-macro-crate"
 version = "3.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1287,9 +1295,8 @@ dependencies = [
  "esp-idf-svc",
  "log",
  "mipidsi",
+ "price",
  "profont",
- "serde",
- "serde_json",
 ]
 
 [[package]]

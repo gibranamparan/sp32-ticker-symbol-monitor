@@ -17,7 +17,7 @@ Greenfield repo. Hardware: ESP-WROOM-32E module (classic ESP32, Xtensa LX6 dual-
 
 ## Decisions
 
-1. **std stack (`esp-idf-svc`/`esp-idf-hal`) over `esp-hal` (no_std).** HTTPS + JSON is the hard part of this app; with esp-idf we get `reqwest` + `esp-mbedtls` and full `serde_json`. no_std (`reqwless` + `embedded-tls`) is workable but fiddly and adds no value for a price ticker. Alternative rejected: no_std/embassy.
+1. **std stack (`esp-idf-svc`/`esp-idf-hal`) over `esp-hal` (no_std).** HTTPS + JSON is the hard part of this app; with esp-idf we get ESP-IDF's mbedTLS-backed `EspHttpClient` and full `serde_json`. Update (during apply): `reqwest` + `esp-mbedtls` was the original sketch, but reqwest has no TLS backend that runs on Xtensa (rustls/ring and OpenSSL both lack ESP32 support) and esp-idf-svc 0.53 exposes no esp-mbedtls feature — the built-in `EspHttpClient` (esp_http_client + mbedTLS, embedded CA via `server_certificate`) covers every spec requirement with less code, so it replaces reqwest. no_std (`reqwless` + `embedded-tls`) rejected as before.
 
 2. **Xtensa toolchain via `espup`.** WROOM-32E is classic ESP32 (Xtensa), so the esp-rs Rust fork (`cargo +esp`) is required regardless of stack. `ldproxy` needed for `esp-idf-sys`; ESP-IDF itself is downloaded automatically by the build script. Sourced env via `export-esp.sh`.
 
@@ -27,9 +27,9 @@ Greenfield repo. Hardware: ESP-WROOM-32E module (classic ESP32, Xtensa LX6 dual-
 
 5. **Display via `mipidsi` + `embedded-graphics`.** `mipidsi` is the maintained ILI9341 driver implementing `DrawTarget<Rgb565>`. Fonts from `embedded-graphics` (or `profont`) scaled up for the big price. Standard 38-pin DevKit wiring pinned in the spec: SCK=GPIO18, MISO=GPIO19, MOSI=GPIO23, CS=GPIO5, DC=GPIO2, RST=GPIO4, BLK=GPIO21, VSPI.
 
-6. **TLS trust: embed the relevant root CA** (the CA signing `api.coinbase.com`) into the firmware image rather than a full webpki root bundle — saves flash/RAM on a 4 MB part. If Coinbase rotates CAs, update the embedded cert.
+6. **TLS trust: embed the relevant root CA** (the self-signed GTS Root R4, trust anchor for `api.coinbase.com`'s Google Trust Services chain) into the firmware image rather than a full webpki root bundle — saves flash/RAM on a 4 MB part. The PEM file keeps a trailing NUL byte for `X509::pem_until_nul`. If Coinbase rotates CAs, update the embedded cert.
 
-7. **Task layout:** FreeRTOS task A = display/UI; task B = fetch loop (WiFi connect → fetch → signal UI → sleep 60 s), communicating via a shared value + state (e.g. `Arc<Mutex<AppState>>` or a channel). Error states are drawn by the UI task, so network hiccups never corrupt rendering.
+7. **Task layout:** FreeRTOS task A = display/UI; task B = fetch loop (WiFi connect → fetch → signal UI → sleep 10 s), communicating via a shared value + state (e.g. `Arc<Mutex<AppState>>` or a channel). Error states are drawn by the UI task, so network hiccups never corrupt rendering.
 
 8. **Config via env/`sdkconfig.defaults`:** WiFi SSID/password and any display tweaks come from environment variables at build time (`esp-idf` convention) so the same binary works for Wokwi (gateway WiFi) and home hardware by changing config, not code.
 
@@ -39,7 +39,7 @@ Greenfield repo. Hardware: ESP-WROOM-32E module (classic ESP32, Xtensa LX6 dual-
 - [Xtensa cold builds are slow (~1 min+), ESP-IDF download is large] → acceptable one-time cost; warm incremental builds are fine
 - [TLS heap pressure on classic ESP32 (~520 KB RAM)] → response payload is ~100 bytes; keep reqwest buffers minimal; if tight, drop to raw `esp-mbedtls` HTTPS later without changing specs
 - [Coinbase CA rotation breaks pinned root] → error state is visible on screen; update embedded cert is a one-line config change
-- [Wokwi sim time ≠ real time] → 60 s refresh cadence is unaffected in practice; verify interval on real hardware during flashing phase
+- [Wokwi sim time ≠ real time] → 10 s refresh cadence is unaffected in practice; verify interval on real hardware during flashing phase
 - [`mipidsi` display variants (inversion/BGR) differ between ILI9341 modules] → init options kept in one config struct; adjust against the virtual display in Wokwi first, confirm on hardware
 
 ## Migration Plan

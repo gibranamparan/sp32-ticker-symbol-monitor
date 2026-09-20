@@ -49,4 +49,23 @@ Useful flags: `--serial-log-file <file>`, `--expect-text <text>` (CI-style pass/
 
 Note: Wokwi loads the app through ESP-IDF's `flasher_args.json`; because `cargo` re-links the Rust ELF after ESP-IDF's cmake step, `scripts/prepare-wokwi.sh` regenerates the app image (`esptool elf2image`) from the current ELF before each run.
 
-Unit tests (parser, run on host): `cargo test --target x86_64-unknown-linux-gnu` — see `src/`.
+## Layout
+
+- `src/main.rs` — firmware: WiFi connect, ILI9341 UI task, Coinbase fetch task (shared state via `Arc<Mutex<AppState>>`)
+- `price/` — pure-std crate: spot-response parsing (`serde_json`) + `$67,432` formatting; unit-tested on the host
+- `price/tests/fixtures/spot_price.json` — recorded real API response used by the tests
+- `certs/coinbase-root-ca.pem` — embedded TLS trust anchor (GTS Root R4, self-signed, from pki.goog); keep the trailing NUL byte — `X509::pem_until_nul` requires it
+- `scripts/` — `prepare-wokwi.sh` (build + flash-image refresh), `sim.sh` (one-command simulation)
+
+## Tests
+
+The `price` crate is pure std, so tests run on the host (the repo pins the xtensa target in `.cargo/config.toml`, hence the explicit host target):
+
+```bash
+cargo +stable test -p price --target x86_64-unknown-linux-gnu
+```
+
+## Known Wokwi limitation
+
+The Wokwi cloud simulator's virtual network link is slow: the Coinbase TLS handshake (its ~3.5 KB ECDSA certificate chain alone transfers for ~10 sim-seconds) can be reset by the gateway/server before completing. On real hardware the same handshake takes well under a second. When a sim run shows `ERROR` on the display with `Price update failed: ESP_ERR_HTTP_CONNECT` in serial, the firmware is fine — the fetch retries every 10 s, and a sim run under lighter cloud load may succeed.
+

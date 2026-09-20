@@ -24,9 +24,12 @@
         [ "esp:TX0", "$serialMonitor:RX", "", [] ],
         [ "esp:RX0", "$serialMonitor:TX", "", [] ],
         [ "esp:D18", "lcd:SCK", "orange", [ "v0" ] ],
+        [ "esp:D19", "lcd:MISO", "purple", [ "v0" ] ],
         [ "esp:D23", "lcd:MOSI", "blue", [ "v0" ] ],
         [ "esp:D5", "lcd:CS", "green", [ "v0" ] ],
         [ "esp:D2", "lcd:D/C", "yellow", [ "v0" ] ],
+        [ "esp:D4", "lcd:RST", "white", [ "v0" ] ],
+        [ "esp:D21", "lcd:LED", "gold", [ "v0" ] ],
         [ "esp:3V3", "lcd:VCC", "red", [ "v0" ] ],
         [ "esp:GND.1", "lcd:GND", "black", [ "v0" ] ]
     ],

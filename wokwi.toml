@@ -2,3 +2,6 @@
 version = 1
 elf = "target/xtensa-esp32-espidf/release/sp32-demo1"
 firmware = "target/xtensa-esp32-espidf/release/build/esp-idf-sys-f28ccb2d64f02b87/out/build/flasher_args.json"
+
+[net]
+gateway = "ws://localhost:9011"
