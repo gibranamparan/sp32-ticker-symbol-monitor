@@ -1,6 +1,6 @@
 ## Purpose
 
-Lets the identical firmware binary run in the Wokwi simulator with a virtual ILI9341 and real end-to-end HTTPS traffic through the Wokwi IoT Gateway, so the development loop requires no physical hardware until final flashing.
+Lets the identical firmware binary run in the Wokwi simulator with real end-to-end HTTPS traffic through the Wokwi IoT Gateway, exercising the build, WiFi, fetch, and state-update behavior of the app. Display output is verified on the physical e-paper panel (Wokwi has no matching e-paper part).
 
 ## ADDED Requirements
 
@@ -20,14 +20,14 @@ The simulated firmware SHALL perform real HTTPS requests to the Coinbase API thr
 
 #### Scenario: End-to-end fetch in simulator
 - **WHEN** the firmware running in Wokwi performs a price fetch
-- **THEN** a real TLS-secured request reaches api.coinbase.com and the displayed price reflects the API's live response
+- **THEN** a real TLS-secured request reaches api.coinbase.com and the fetched price appears in the application state and serial log
 
-### Requirement: Virtual display fidelity
-The Wokwi diagram SHALL include a virtual ILI9341 wired to the same pins the hardware build uses, so that what renders in the simulator corresponds to what the physical display will show.
+### Requirement: Simulated application basics
+The Wokwi diagram SHALL keep the firmware runnable without a physical display: the e-paper `BUSY` input SHALL be held at its idle level so the display driver does not block, and the simulation SHALL exercise boot, WiFi connect, HTTPS fetch, and state updates. Virtual rendering of the e-paper panel is not required (Wokwi provides no matching e-paper part); visible output is verified on hardware.
 
-#### Scenario: Display output visible in simulator
-- **WHEN** the firmware draws to the display while running in Wokwi
-- **THEN** the virtual ILI9341 in the simulator shows the drawn content
+#### Scenario: Firmware runs in simulator
+- **WHEN** the firmware boots in Wokwi with the BUSY line held idle
+- **THEN** it reaches the fetch loop, logs prices, and updates application state without blocking on the display
 
 ### Requirement: Simulation entry point
 The project SHALL provide a single command entry point (via the Wokwi CLI) to build and launch the simulation, and the simulation configuration SHALL be committed to the repository.

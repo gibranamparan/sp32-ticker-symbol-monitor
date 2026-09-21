@@ -9,28 +9,12 @@
       "top": -148.9,
       "left": -302.6,
       "attrs": { "flashSize": "4" }
-    },
-    {
-      "type": "wokwi-ili9341",
-      "id": "lcd",
-      "top": -196.7,
-      "left": 97.2,
-      "rotate": 90,
-      "attrs": {}
     }
   ],
   "connections": [
     [ "esp:TX0", "$serialMonitor:RX", "", [] ],
     [ "esp:RX0", "$serialMonitor:TX", "", [] ],
-    [ "esp:D18", "lcd:SCK", "orange", [ "h95.7", "v38.41" ] ],
-    [ "esp:D19", "lcd:MISO", "purple", [ "h86.1", "v67.11" ] ],
-    [ "esp:D23", "lcd:MOSI", "blue", [ "h220.5", "v86.51" ] ],
-    [ "esp:D5", "lcd:CS", "green", [ "h66.9", "v-9.6" ] ],
-    [ "esp:D2", "lcd:D/C", "yellow", [ "h47.7", "v-29.5" ] ],
-    [ "esp:D4", "lcd:RST", "white", [ "h105.3", "v-28.7" ] ],
-    [ "esp:D21", "lcd:LED", "gold", [ "h134.1", "v66.81" ] ],
-    [ "esp:3V3", "lcd:VCC", "red", [ "h162.9", "v-96" ] ],
-    [ "esp:GND.1", "lcd:GND", "black", [ "h191.7", "v-76.9" ] ]
+    [ "esp:D25", "esp:GND.1", "black", [ "v0" ] ]
   ],
   "serialMonitor": { "convertEol": true, "display": "terminal" },
   "dependencies": {}

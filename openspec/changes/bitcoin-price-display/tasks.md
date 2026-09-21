@@ -17,7 +17,7 @@
 - [x] 3.3 Verify WiFi networking through the Wokwi IoT Gateway (e.g. DNS/TCP smoke test from the virtual ESP32)
 - [x] 3.4 Add a single simulation entry-point command (documented in README)
 
-## 4. Display driver
+## 4. Display driver (ILI9341 — superseded by §8, kept as history)
 
 - [x] 4.1 Add the virtual ILI9341 to `diagram.json` wired to VSPI pins (SCK=18, MISO=19, MOSI=23, CS=5, DC=2, RST=4, BLK=21)
 - [x] 4.2 Initialize the ILI9341 via `mipidsi` and clear the screen; verify pixels appear on the Wokwi virtual display
@@ -37,8 +37,16 @@
 - [x] 6.3 Implement the UI task: waiting state at startup, big price on success, error state on failure with no known price, atomic full-frame redraws
 - [x] 6.4 End-to-end run in Wokwi: price from Coinbase appears on the virtual display and updates
 
-## 7. Hardware bring-up
+## 7. Hardware bring-up (e-paper)
 
-- [ ] 7.1 Wire the physical ILI9341 to the 38-pin DevKit per the pinned pin map
-- [ ] 7.2 Flash the same binary; verify display rendering matches Wokwi (adjust inversion/rotation config only if the module differs)
+- [ ] 7.1 Attach the GDEY027T91 panel to the driver board's e-paper flex connector and set the pixel-config switch to the position matching the panel
+- [ ] 7.2 Flash the same binary; verify the waiting/price/error screens render on the physical e-paper (orientation, contrast, legibility)
 - [ ] 7.3 Verify WiFi credentials config change and the 10 s refresh cadence on real hardware
+
+## 8. E-paper migration
+
+- [x] 8.1 Swap `mipidsi` for `epd-waveshare` (git master, `epd2in7_v2`) in `Cargo.toml`
+- [x] 8.2 Rework display bring-up: driver-board fixed pins (SCK=13, MOSI=14, CS=15, DC=27, RST=26, BUSY=25), landscape rotation, no backlight/reset hacks
+- [x] 8.3 Rework UI rendering for monochrome (`Color`) + refresh only when displayed content changes
+- [x] 8.4 Update `diagram.json` for Wokwi (remove ILI9341, hold BUSY idle) and verify boot + live fetch in simulation
+- [x] 8.5 Repurpose `PANEL_TEST` as the e-paper bring-up pattern (single full update) and verify on hardware

@@ -1,6 +1,6 @@
 ## Context
 
-Greenfield repo. Hardware: ESP-WROOM-32E module (classic ESP32, Xtensa LX6 dual-core, WiFi) on a standard 38-pin DevKit, plus an ILI9341 240×320 SPI TFT. Development host currently has only stable Rust; no Xtensa toolchain, no simulator tooling installed. The full exploration and decisions were agreed with the user before this proposal; this document pins them down.
+Greenfield repo. Hardware: Waveshare E-Paper ESP32 Driver Board Rev 3 (ESP32-WROOM-32, classic Xtensa LX6, WiFi) with a Good Display GDEY027T91 2.7" monochrome e-paper panel (SSD1680, 264×176, SPI) attached through the board's native 24-pin flex connector. Development host currently has only stable Rust; no Xtensa toolchain, no simulator tooling installed. The full exploration and decisions were agreed with the user before this proposal; this document pins them down, including the later pivot from the originally planned ILI9341 TFT to the e-paper panel.
 
 ## Goals / Non-Goals
 
@@ -21,15 +21,15 @@ Greenfield repo. Hardware: ESP-WROOM-32E module (classic ESP32, Xtensa LX6 dual-
 
 2. **Xtensa toolchain via `espup`.** WROOM-32E is classic ESP32 (Xtensa), so the esp-rs Rust fork (`cargo +esp`) is required regardless of stack. `ldproxy` needed for `esp-idf-sys`; ESP-IDF itself is downloaded automatically by the build script. Sourced env via `export-esp.sh`.
 
-3. **Wokwi as the emulation path, accessed through `wokwi-cli`.** The virtual ESP32 runs the real compiled ELF; `diagram.json` wires a virtual ILI9341 to the same pins as hardware; virtual WiFi tunnels raw TCP through the Wokwi IoT Gateway so the firmware performs its own real TLS. Requires a free Wokwi account token (`WOKWI_CLI_TOKEN`). Alternatives rejected: QEMU (no WiFi), Renode (no ILI9341 part, more setup), host-abstraction (user explicitly wants the real thing, not a second target).
+3. **Wokwi as the emulation path, accessed through `wokwi-cli`.** The virtual ESP32 runs the real compiled ELF; virtual WiFi tunnels raw TCP through the Wokwi IoT Gateway so the firmware performs its own real TLS. Update (during apply, e-paper pivot): Wokwi has no matching e-paper part, so the simulation now validates build/WiFi/fetch/state basics with the e-paper `BUSY` line held idle in `diagram.json`; virtual display rendering is dropped and the panel is verified on hardware. Requires a free Wokwi account token (`WOKWI_CLI_TOKEN`). Alternatives rejected as before: QEMU (no WiFi), Renode (more setup), host-abstraction (user wants the real firmware).
 
 4. **Coinbase spot API.** `GET https://api.coinbase.com/v2/prices/BTC-USD/spot` → `{"data":{"base":"BTC","currency":"USD","amount":"67432.15"}}`. Keyless, tiny JSON, stable schema. Alternatives rejected: CoinGecko, Binance (heavier payloads/rate-limit considerations).
 
-5. **Display via `mipidsi` + `embedded-graphics`.** `mipidsi` is the maintained ILI9341 driver implementing `DrawTarget<Rgb565>`. Fonts from `embedded-graphics` (or `profont`) scaled up for the big price. Standard 38-pin DevKit wiring pinned in the spec: SCK=GPIO18, MISO=GPIO19, MOSI=GPIO23, CS=GPIO5, DC=GPIO2, RST=GPIO4, BLK=GPIO21, VSPI.
+5. **Display via `epd-waveshare` on the GDEY027T91 e-paper panel.** The panel (SSD1680 controller, 264×176, black/white, full refresh 3 s / fast refresh 1.5 s / partial refresh 0.3 s per vendor) hangs off the driver board's fixed e-paper pins: SCK=GPIO13, MOSI=GPIO14, CS=GPIO15, DC=GPIO27, RST=GPIO26, BUSY=GPIO25 — no external wiring, no backlight. Driver: `epd-waveshare` (git master) using the `epd2in7_v2` module — the published 0.6.0 crate predates the plain-2.7 module; it implements `embedded-hal` 1.0 `SpiDevice`/`DelayNs` and embedded-graphics-core 0.4, matching esp-idf-hal 0.47 and embedded-graphics 0.8. Rendering uses the crate's `Display2in7` full-frame buffer + `Color` (B/W), rotated to the 264×176 landscape layout; the UI redraws (and refreshes) only when the displayed content changes. Update (during apply, display pivot): the originally planned ILI9341 TFT (`mipidsi`) was abandoned after the physical module never produced a frame despite verified SPI activity, power, and reset at its pins — the module is presumed faulty. The e-paper panel is the native pairing for this board and a better fit for a ticker (bistable image, no backlight, daylight readable).
 
 6. **TLS trust: embed the relevant root CA** — currently the self-signed GTS Root R1 (pki.goog), trust anchor for the RSA chain (`coinbase.com` ← GTS WR1) that Cloudflare serves to RSA-only clients. Update (during apply): the TLS client is pinned to RSA suites (`CONFIG_MBEDTLS_KEY_EXCHANGE_ECDHE_ECDSA is not set`) because the classic ESP32 has no ECC accelerator and the Wokwi sim's emulated CPU is ~100x slower than silicon — a software-ECDSA handshake (~16 sim-seconds) exceeds Cloudflare's ~13 s handshake timeout, while RSA verification rides the hardware MPI and completes in ~4 sim-seconds. (`MBEDTLS_ECDSA_C` itself is force-selected by the WiFi component and cannot be compiled out.) The PEM file keeps a trailing NUL byte for `X509::pem_until_nul`. If Coinbase rotates CAs, update the embedded cert.
 
-7. **Task layout:** FreeRTOS task A = display/UI; task B = fetch loop (WiFi connect → fetch → signal UI → sleep 10 s), communicating via a shared value + state (e.g. `Arc<Mutex<AppState>>` or a channel). Error states are drawn by the UI task, so network hiccups never corrupt rendering.
+7. **Task layout:** FreeRTOS task A = display/UI (e-paper redraw + refresh only on content change); task B = fetch loop (WiFi connect → fetch → signal UI → sleep 10 s), communicating via a shared value + state (e.g. `Arc<Mutex<AppState>>` or a channel). Error states are drawn by the UI task, so network hiccups never corrupt rendering.
 
 8. **Config via env/`sdkconfig.defaults`:** WiFi SSID/password and the fetch refresh interval (`FETCH_INTERVAL_SECS`, default 10 s) come from environment variables at build time (`esp-idf` convention) so the same binary works for Wokwi (gateway WiFi) and home hardware by changing config, not code.
 
@@ -40,7 +40,9 @@ Greenfield repo. Hardware: ESP-WROOM-32E module (classic ESP32, Xtensa LX6 dual-
 - [TLS heap pressure on classic ESP32 (~520 KB RAM)] → response payload is ~100 bytes; keep reqwest buffers minimal; if tight, drop to raw `esp-mbedtls` HTTPS later without changing specs
 - [Coinbase CA rotation breaks pinned root] → error state is visible on screen; update embedded cert is a one-line config change
 - [Wokwi sim time ≠ real time] → 10 s refresh cadence is unaffected in practice; verify interval on real hardware during flashing phase
-- [`mipidsi` display variants (inversion/BGR) differ between ILI9341 modules] → init options kept in one config struct; adjust against the virtual display in Wokwi first, confirm on hardware
+- [E-paper refresh wear/ghosting from frequent full refreshes] → firmware refreshes only when content changes; partial refresh (`update_partial_frame` + `RefreshLut::Quick`) available as a later optimization; FETCH_INTERVAL_SECS configurable if cadence must drop
+- [`epd-waveshare` git-master dependency (the plain-2.7 module is unreleased)] → pin the revision in Cargo.lock; small, self-contained driver if we ever need to vendor it
+- [E-paper `BUSY` blocking in simulation (no panel to answer)] → hold BUSY idle in `diagram.json`; hardware verifies real busy timing
 
 ## Migration Plan
 
@@ -48,4 +50,4 @@ Not applicable (greenfield). Rollback = delete the crate; nothing existing depen
 
 ## Open Questions
 
-None. Wiring is assumed per the standard 38-pin DevKit (user-confirmed assumption, recorded in the specs).
+None. The panel (Good Display GDEY027T91) and its controller are confirmed; display wiring is fixed by the driver board's e-paper connector.

@@ -1,6 +1,6 @@
 # sp32-demo1
 
-ESP32 (ESP-WROOM-32E) firmware in Rust: displays the live BTC-USD spot price from Coinbase on an ILI9341 TFT. Development happens in the [Wokwi simulator](https://wokwi.com) with real HTTPS traffic — no hardware required until the final flash.
+ESP32 (ESP-WROOM-32E) firmware in Rust: displays the live BTC-USD spot price from Coinbase on a Good Display GDEY027T91 2.7" e-paper panel (264×176, SSD1680) attached to a Waveshare E-Paper ESP32 Driver Board. Development happens in the [Wokwi simulator](https://wokwi.com) with real HTTPS traffic — no hardware required until the final flash.
 
 ## Toolchain setup (one-time)
 
@@ -49,6 +49,14 @@ Useful flags: `--serial-log-file <file>`, `--expect-text <text>` (CI-style pass/
 
 Note: Wokwi loads the app through ESP-IDF's `flasher_args.json`; because `cargo` re-links the Rust ELF after ESP-IDF's cmake step, `scripts/prepare-wokwi.sh` regenerates the app image (`esptool elf2image`) from the current ELF before each run.
 
+Note: Wokwi has no matching e-paper part. The simulation validates build, WiFi, HTTPS fetch, and state updates — the e-paper `BUSY` line is held idle in `diagram.json` so the display driver does not block. Visible display output is verified on the physical panel.
+
+## Display (hardware)
+
+The GDEY027T91 hangs off the driver board's fixed e-paper connector — no external wiring. Firmware pin map: `SCK=GPIO13, MOSI=GPIO14, CS=GPIO15, DC=GPIO27, RST=GPIO26, BUSY=GPIO25` (the pins Waveshare hard-wires to the 24-pin flex). The UI rotates the panel to 264×176 landscape and refreshes only when the displayed content changes (e-paper wear + flashing). Driver: `epd-waveshare` (pinned git revision, `epd2in7_v2` module).
+
+Panel bring-up pattern (stripes, one full refresh): build with `PANEL_TEST=1`, e.g. `PANEL_TEST=1 ./scripts/hw.sh`.
+
 ## Flash to hardware
 
 Create your credentials file once (gitignored, never committed):
@@ -70,11 +78,11 @@ This is the only path that reads `toml.production` (passed to cargo as a `--conf
 
 ## Layout
 
-- `src/main.rs` — firmware: WiFi connect, ILI9341 UI task, Coinbase fetch task (shared state via `Arc<Mutex<AppState>>`)
+- `src/main.rs` — firmware: WiFi connect, e-paper UI task (refresh on content change), Coinbase fetch task (shared state via `Arc<Mutex<AppState>>`)
 - `price/` — pure-std crate: spot-response parsing (`serde_json`) + `$67,432` formatting; unit-tested on the host
 - `price/tests/fixtures/spot_price.json` — recorded real API response used by the tests
-- `certs/coinbase-root-ca.pem` — embedded TLS trust anchor (GTS Root R4, self-signed, from pki.goog); keep the trailing NUL byte — `X509::pem_until_nul` requires it
-- `scripts/` — `prepare-wokwi.sh` (build + flash-image refresh), `sim.sh` (one-command simulation)
+- `certs/coinbase-root-ca.pem` — embedded TLS trust anchor (GTS Root R1, self-signed, from pki.goog); keep the trailing NUL byte — `X509::pem_until_nul` requires it
+- `scripts/` — `prepare-wokwi.sh` (build + flash-image refresh), `sim.sh` (one-command simulation), `hw.sh` (production build + flash)
 
 ## Tests
 

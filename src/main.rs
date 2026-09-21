@@ -1,13 +1,14 @@
 use anyhow::Result;
 use embedded_graphics::geometry::OriginDimensions;
 use embedded_graphics::mono_font::MonoTextStyle;
-use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::*;
-use embedded_graphics::primitives::Rectangle;
+use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
 use embedded_graphics::text::{Baseline, Text};
+use epd_waveshare::epd2in7_v2::*;
+use epd_waveshare::prelude::{Color, DisplayRotation, WaveshareDisplay};
 use esp_idf_svc::eventloop::EspSystemEventLoop;
 use esp_idf_svc::hal::delay::FreeRtos;
-use esp_idf_svc::hal::gpio::PinDriver;
+use esp_idf_svc::hal::gpio::{PinDriver, Pull};
 use esp_idf_svc::hal::peripherals::Peripherals;
 use esp_idf_svc::hal::spi::{
     config::{Config as SpiConfig, DriverConfig},
@@ -23,9 +24,6 @@ use esp_idf_svc::tls::X509;
 use esp_idf_svc::wifi::{
     AuthMethod, BlockingWifi, ClientConfiguration, Configuration, EspWifi,
 };
-use mipidsi::interface::SpiInterface;
-use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
-use mipidsi::{models::ILI9341Rgb565, Builder};
 use profont::{PROFONT_12_POINT, PROFONT_24_POINT};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread;
@@ -38,8 +36,8 @@ const SPOT_URL: &str = "https://api.coinbase.com/v2/prices/BTC-USD/spot";
 // trailing NUL byte: X509::pem_until_nul scans for it.
 const COINBASE_ROOT_CA: &[u8] = include_bytes!("../certs/coinbase-root-ca.pem");
 
-/// Logical (rotated) display width in pixels: 320x240 landscape.
-const LOGICAL_WIDTH: i32 = 320;
+/// Logical (rotated) display width in pixels: 264x176 landscape.
+const LOGICAL_WIDTH: i32 = 264;
 
 /// Price refresh cadence, baked in at build time (FETCH_INTERVAL_SECS env,
 /// default 10 s — see .cargo/config.toml).
@@ -96,7 +94,7 @@ fn connect_wifi_with_retries(wifi: &mut BlockingWifi<EspWifi<'static>>) -> Resul
 
 /// One HTTPS GET of the Coinbase spot price. Returns the raw response body.
 /// TLS is handled by ESP-IDF's mbedTLS, validating the server chain against
-/// the embedded GTS Root R4 anchor.
+/// the embedded GTS Root R1 anchor.
 fn fetch_price_raw() -> Result<String> {
     let mut conn = EspHttpConnection::new(&HttpConfig {
         server_certificate: Some(X509::pem_until_nul(COINBASE_ROOT_CA)),
@@ -159,7 +157,7 @@ struct Scaled2x<'a, D>(&'a mut D);
 
 impl<D> OriginDimensions for Scaled2x<'_, D>
 where
-    D: DrawTarget<Color = Rgb565>,
+    D: DrawTarget,
 {
     fn size(&self) -> Size {
         self.0.bounding_box().size
@@ -168,10 +166,10 @@ where
 
 impl<D> DrawTarget for Scaled2x<'_, D>
 where
-    D: DrawTarget<Color = Rgb565>,
+    D: DrawTarget,
     D::Error: core::fmt::Debug,
 {
-    type Color = Rgb565;
+    type Color = D::Color;
     type Error = D::Error;
 
     fn draw_iter<I>(&mut self, pixels: I) -> Result<(), Self::Error>
@@ -202,9 +200,9 @@ where
     }
 }
 
-fn draw_centered<D>(display: &mut D, text: &str, y: i32, style: MonoTextStyle<Rgb565>)
+fn draw_centered<D>(display: &mut D, text: &str, y: i32, style: MonoTextStyle<Color>)
 where
-    D: DrawTarget<Color = Rgb565>,
+    D: DrawTarget<Color = Color>,
     D::Error: core::fmt::Debug,
 {
     let char_w = style.font.character_size.width as i32;
@@ -216,9 +214,9 @@ where
 }
 
 /// 48pt text (24pt doubled), centered, at `visual_y` in real pixels.
-fn draw_big_centered<D>(display: &mut D, text: &str, visual_y: i32, style: MonoTextStyle<Rgb565>)
+fn draw_big_centered<D>(display: &mut D, text: &str, visual_y: i32, style: MonoTextStyle<Color>)
 where
-    D: DrawTarget<Color = Rgb565>,
+    D: DrawTarget<Color = Color>,
     D::Error: core::fmt::Debug,
 {
     let char_w = style.font.character_size.width as i32;
@@ -238,33 +236,34 @@ where
 
 fn draw_frame<D>(display: &mut D, frame: &AppState)
 where
-    D: DrawTarget<Color = Rgb565>,
+    D: DrawTarget<Color = Color>,
     D::Error: core::fmt::Debug,
 {
-    check(display.clear(Rgb565::BLACK)).unwrap();
-    let label = MonoTextStyle::new(&PROFONT_12_POINT, Rgb565::WHITE);
+    // Full-frame redraw on a white background (e-paper is monochrome).
+    check(display.fill_solid(&display.bounding_box(), Color::White)).unwrap();
+    let label = MonoTextStyle::new(&PROFONT_12_POINT, Color::Black);
     match frame {
         AppState::Waiting => {
-            draw_centered(display, "BTC / USD", 40, label);
-            draw_centered(display, "Waiting for first price...", 110, label);
+            draw_centered(display, "BTC / USD", 30, label);
+            draw_centered(display, "Waiting for first price...", 90, label);
         }
         AppState::Price { display: price } => {
-            draw_centered(display, "BTC / USD", 40, label);
+            draw_centered(display, "BTC / USD", 20, label);
             draw_big_centered(
                 display,
                 price,
-                96,
-                MonoTextStyle::new(&PROFONT_24_POINT, Rgb565::YELLOW),
+                70,
+                MonoTextStyle::new(&PROFONT_24_POINT, Color::Black),
             );
         }
         AppState::Error => {
             draw_big_centered(
                 display,
                 "ERROR",
-                88,
-                MonoTextStyle::new(&PROFONT_24_POINT, Rgb565::RED),
+                60,
+                MonoTextStyle::new(&PROFONT_24_POINT, Color::Black),
             );
-            draw_centered(display, "API unreachable, retrying...", 150, label);
+            draw_centered(display, "API unreachable, retrying...", 130, label);
         }
     }
 }
@@ -300,64 +299,56 @@ fn main() -> Result<()> {
 
     connect_wifi_with_retries(&mut wifi)?;
 
-    // --- ILI9341 over VSPI (SCK=18, MOSI=23, CS=5, DC=2) ---
-    // Backlight on GPIO22: the physical board's GPIO21 output is damaged
-    // (0 V when driven high), so the spec's original pin was substituted.
-    let mut backlight = PinDriver::output(peripherals.pins.gpio22)?;
-    backlight.set_high()?;
-
-    // RESET is hardwired to 3.3V (vendor-recommended for this module; the
-    // board's GPIO4 output also reads ~0 V when driven, like GPIO21, so the
-    // reset line is not MCU-controlled on this unit).
-
-    let spi = SpiDeviceDriver::new_single(
+    // --- GDEY027T91 e-paper on the driver board's fixed e-paper wiring:
+    // SCK=GPIO13, MOSI=GPIO14, CS=GPIO15, DC=GPIO27, RST=GPIO26, BUSY=GPIO25 ---
+    let mut spi = SpiDeviceDriver::new_single(
         peripherals.spi2,
-        peripherals.pins.gpio18,
-        peripherals.pins.gpio23,
-        Option::<esp_idf_svc::hal::gpio::Gpio19>::None,
-        Some(peripherals.pins.gpio5),
+        peripherals.pins.gpio13,
+        peripherals.pins.gpio14,
+        Option::<esp_idf_svc::hal::gpio::Gpio12>::None,
+        Some(peripherals.pins.gpio15),
         &DriverConfig::new().dma(Dma::Disabled),
-        // 1 MHz until the panel is proven on breadboard jumpers, then raise
-        &SpiConfig::new().baudrate(Hertz(1_000_000)),
+        &SpiConfig::new().baudrate(Hertz(8_000_000)),
     )?;
 
-    let dc = PinDriver::output(peripherals.pins.gpio2)?;
+    let busy = PinDriver::input(peripherals.pins.gpio25, Pull::Floating)?;
+    let dc = PinDriver::output(peripherals.pins.gpio27)?;
+    let rst = PinDriver::output(peripherals.pins.gpio26)?;
+    let mut delay = FreeRtos;
 
-    let mut buffer = [0u8; 512];
-    let di = SpiInterface::new(spi, dc, &mut buffer);
+    let mut epd = Epd2in7::new(&mut spi, busy, dc, rst, &mut delay, None)
+        .map_err(|e| anyhow::anyhow!("e-paper init failed: {e:?}"))?;
 
-    // Physical module is ILI9341 per vendor (protosupplies DSP-15).
-    // DIAGNOSTIC: Dma::Disabled — DMA path is silent-failure-prone on real
-    // silicon and the Wokwi sim does not emulate it.
-    let mut display = Builder::new(ILI9341Rgb565, di)
-        .color_order(ColorOrder::Bgr)
-        // Real-world modules of this family need INVON (the Wokwi virtual
-        // one doesn't) - without it the cleared-black frame renders white.
-        .invert_colors(ColorInversion::Inverted)
-        .orientation(Orientation::new().rotate(Rotation::Deg270).flip_horizontal())
-        .init(&mut FreeRtos)
-        .map_err(|e| anyhow::anyhow!("display init failed: {e:?}"))?;
+    // The framebuffer (176/8 * 264 = 5808 bytes) lives on the heap: keeping it
+    // inline on main's 8 KB stack overflows it at function entry.
+    let mut display = Box::new(Display2in7::default());
+    display.set_rotation(DisplayRotation::Rotate90);
+    log::info!(
+        "E-paper display initialized ({}x{})",
+        display.size().width,
+        display.size().height
+    );
 
-    log::info!("Display initialized");
-
-    // PANEL_TEST=1 build: paint red/blue stripes to verify GRAM rendering
+    // PANEL_TEST=1 build: alternate black/white stripes every 5 s to prove the
+    // panel can update, one full refresh per cycle
     if env!("PANEL_TEST") == "1" {
-        log::info!("PANEL TEST: stripes");
-        use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
+        log::info!("PANEL TEST: alternating stripes every 5 s");
         let mut phase = false;
         loop {
-            for (row, y) in (0..320).step_by(40).enumerate() {
-                let stripe_a = (row % 2 == 0) != phase;
-                let color = if stripe_a { Rgb565::RED } else { Rgb565::BLUE };
+            for (row, y) in (0..176).step_by(22).enumerate() {
+                let black = (row % 2 == 0) != phase;
+                let color = if black { Color::Black } else { Color::White };
                 check(
-                    Rectangle::new(Point::new(0, y), Size::new(320, 40))
+                    Rectangle::new(Point::new(0, y), Size::new(264, 22))
                         .into_styled(PrimitiveStyle::with_fill(color))
-                        .draw(&mut display),
+                        .draw(&mut *display),
                 )?;
             }
+            check(epd.update_frame(&mut spi, display.buffer(), &mut delay))?;
+            check(epd.display_frame(&mut spi, &mut delay))?;
+            log::info!("PANEL TEST: phase {phase} displayed");
             phase = !phase;
-            log::info!("stripes phase {phase}");
-            FreeRtos::delay_ms(4000);
+            FreeRtos::delay_ms(5000);
         }
     }
 
@@ -385,7 +376,10 @@ fn main() -> Result<()> {
             },
         };
         if target.is_some() && target != last_drawn {
-            draw_frame(&mut display, target.as_ref().unwrap());
+            draw_frame(&mut *display, target.as_ref().unwrap());
+            check(epd.update_frame(&mut spi, display.buffer(), &mut delay))?;
+            check(epd.display_frame(&mut spi, &mut delay))?;
+            log::info!("E-paper refreshed");
             last_drawn = target;
         }
         FreeRtos::delay_ms(200);

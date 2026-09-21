@@ -1,11 +1,11 @@
 ## Purpose
 
-Renders the application state on the 240×320 ILI9341 TFT over SPI: the current BTC-USD price as large readable text, updated after every successful refresh, with a visible error state when data is unavailable.
+Renders the application state on the Good Display GDEY027T91 2.7" monochrome e-paper panel (264×176 landscape) over SPI: the current BTC-USD price as large readable text, updated after every successful refresh, with a visible error state when data is unavailable.
 
 ## ADDED Requirements
 
 ### Requirement: Price rendering
-The firmware SHALL render the current BTC-USD price as large text filling a significant portion of the 240×320 display, legible from arm's length.
+The firmware SHALL render the current BTC-USD price as large text filling a significant portion of the 264×176 display, legible from arm's length.
 
 #### Scenario: First successful fetch
 - **WHEN** the first price fetch succeeds
@@ -31,10 +31,21 @@ The firmware SHALL show a distinct error state on the display when it has no pri
 - **THEN** the display MAY continue showing the last known price; it SHALL NOT show a corrupt or partially rendered frame
 
 ### Requirement: Display initialization
-The firmware SHALL initialize the ILI9341 over SPI using the standard 38-pin DevKit wiring (SCK=GPIO18, MISO=GPIO19, MOSI=GPIO23, CS=GPIO5, DC=GPIO2, RST=GPIO4, backlight=GPIO21) so that drawing commands produce visible pixels.
+The firmware SHALL initialize the GDEY027T91 (SSD1680 controller) over SPI using the Waveshare E-Paper ESP32 Driver Board's fixed e-paper wiring (SCK=GPIO13, MOSI=GPIO14, CS=GPIO15, DC=GPIO27, RST=GPIO26, BUSY=GPIO25) so that drawing commands produce a visible frame after a refresh cycle.
 
-> Amendment (during apply, hardware bring-up): on the physical Waveshare ESP32 Driver Board used for testing, GPIO21's output stage is damaged (reads 0 V when driven high) and the real panel requires color inversion plus 5 V at VCC (onboard regulator). The backlight is therefore driven from **GPIO22** (P22), with `invert_colors(Inverted)` enabled and VCC fed from the board's 5 V pin. GPIO roles for the SPI signals are unchanged.
+> Amendment (during apply, display pivot): the original ILI9341 TFT target was replaced by the e-paper panel. The physical TFT module never produced a frame despite verified bus activity, power, and reset at the module; the e-paper panel and driver board are a native pair (flex connector, no external wiring) and match the ticker use case (bistable, daylight readable, no backlight). The SPI bus and control pins are therefore the driver board's fixed e-paper pins, and no backlight exists.
 
 #### Scenario: Display comes up
 - **WHEN** the firmware boots
-- **THEN** the display is initialized and any drawn content becomes visible, including in the Wokwi virtual display
+- **THEN** the display is initialized and the waiting state becomes visible on the panel after the initial refresh
+
+### Requirement: Refresh discipline
+The firmware SHALL only trigger an e-paper refresh cycle when the content to display has changed (state transition or new price string), so that an unchanged price does not cause unnecessary flashing or panel wear.
+
+#### Scenario: Unchanged price
+- **WHEN** a fetch returns the same price that is already displayed
+- **THEN** no new refresh cycle is triggered
+
+#### Scenario: Changed content
+- **WHEN** the price string or app state changes
+- **THEN** a refresh cycle updates the panel to the new content

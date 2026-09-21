@@ -12,7 +12,9 @@ anyhow = "1.0"
 log = "0.4"
 esp-idf-svc = "0.53"
 esp-idf-hal = "0.47"
-mipidsi = "0.10"
+# GDEY027T91 (SSD1680) driver: the plain-2.7 module (`epd2in7_v2`) is not in
+# the 0.6.0 release, hence the pinned git revision.
+epd-waveshare = { git = "https://github.com/caemor/epd-waveshare.git", rev = "48458e195662eab97d10e852893295ee0876ba74", features = ["graphics"] }
 embedded-graphics = "0.8"
 embedded-hal = "1.0"
 profont = "0.7"
