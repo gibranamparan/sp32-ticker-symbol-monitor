@@ -33,6 +33,8 @@ The firmware SHALL show a distinct error state on the display when it has no pri
 ### Requirement: Display initialization
 The firmware SHALL initialize the ILI9341 over SPI using the standard 38-pin DevKit wiring (SCK=GPIO18, MISO=GPIO19, MOSI=GPIO23, CS=GPIO5, DC=GPIO2, RST=GPIO4, backlight=GPIO21) so that drawing commands produce visible pixels.
 
+> Amendment (during apply, hardware bring-up): on the physical Waveshare ESP32 Driver Board used for testing, GPIO21's output stage is damaged (reads 0 V when driven high) and the real panel requires color inversion plus 5 V at VCC (onboard regulator). The backlight is therefore driven from **GPIO22** (P22), with `invert_colors(Inverted)` enabled and VCC fed from the board's 5 V pin. GPIO roles for the SPI signals are unchanged.
+
 #### Scenario: Display comes up
 - **WHEN** the firmware boots
 - **THEN** the display is initialized and any drawn content becomes visible, including in the Wokwi virtual display

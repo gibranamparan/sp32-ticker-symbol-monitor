@@ -24,7 +24,7 @@ use esp_idf_svc::wifi::{
     AuthMethod, BlockingWifi, ClientConfiguration, Configuration, EspWifi,
 };
 use mipidsi::interface::SpiInterface;
-use mipidsi::options::{ColorOrder, Orientation, Rotation};
+use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
 use mipidsi::{models::ILI9341Rgb565, Builder};
 use profont::{PROFONT_12_POINT, PROFONT_24_POINT};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -41,7 +41,15 @@ const COINBASE_ROOT_CA: &[u8] = include_bytes!("../certs/coinbase-root-ca.pem");
 /// Logical (rotated) display width in pixels: 320x240 landscape.
 const LOGICAL_WIDTH: i32 = 320;
 
-const REFRESH_INTERVAL: Duration = Duration::from_secs(10);
+/// Price refresh cadence, baked in at build time (FETCH_INTERVAL_SECS env,
+/// default 10 s — see .cargo/config.toml).
+fn refresh_interval() -> Duration {
+    let secs: u64 = env!("FETCH_INTERVAL_SECS")
+        .parse()
+        .expect("FETCH_INTERVAL_SECS must be an integer number of seconds");
+    assert!(secs > 0, "FETCH_INTERVAL_SECS must be > 0");
+    Duration::from_secs(secs)
+}
 
 // --- 6.1 shared application state ---
 
@@ -139,7 +147,7 @@ fn fetch_loop(state: SharedState) {
                 *lock_state(&state) = AppState::Error;
             }
         }
-        thread::sleep(REFRESH_INTERVAL);
+        thread::sleep(refresh_interval());
     }
 }
 
@@ -292,11 +300,15 @@ fn main() -> Result<()> {
 
     connect_wifi_with_retries(&mut wifi)?;
 
-    // --- ILI9341 over VSPI (SCK=18, MOSI=23, CS=5, DC=2, RST=4) ---
-    let mut backlight = PinDriver::output(peripherals.pins.gpio21)?;
+    // --- ILI9341 over VSPI (SCK=18, MOSI=23, CS=5, DC=2) ---
+    // Backlight on GPIO22: the physical board's GPIO21 output is damaged
+    // (0 V when driven high), so the spec's original pin was substituted.
+    let mut backlight = PinDriver::output(peripherals.pins.gpio22)?;
     backlight.set_high()?;
 
-    let mut rst = PinDriver::output(peripherals.pins.gpio4)?;
+    // RESET is hardwired to 3.3V (vendor-recommended for this module; the
+    // board's GPIO4 output also reads ~0 V when driven, like GPIO21, so the
+    // reset line is not MCU-controlled on this unit).
 
     let spi = SpiDeviceDriver::new_single(
         peripherals.spi2,
@@ -304,8 +316,9 @@ fn main() -> Result<()> {
         peripherals.pins.gpio23,
         Option::<esp_idf_svc::hal::gpio::Gpio19>::None,
         Some(peripherals.pins.gpio5),
-        &DriverConfig::new().dma(Dma::Auto(512)),
-        &SpiConfig::new().baudrate(Hertz(8_000_000)),
+        &DriverConfig::new().dma(Dma::Disabled),
+        // 1 MHz until the panel is proven on breadboard jumpers, then raise
+        &SpiConfig::new().baudrate(Hertz(1_000_000)),
     )?;
 
     let dc = PinDriver::output(peripherals.pins.gpio2)?;
@@ -313,14 +326,40 @@ fn main() -> Result<()> {
     let mut buffer = [0u8; 512];
     let di = SpiInterface::new(spi, dc, &mut buffer);
 
+    // Physical module is ILI9341 per vendor (protosupplies DSP-15).
+    // DIAGNOSTIC: Dma::Disabled — DMA path is silent-failure-prone on real
+    // silicon and the Wokwi sim does not emulate it.
     let mut display = Builder::new(ILI9341Rgb565, di)
-        .reset_pin(&mut rst)
         .color_order(ColorOrder::Bgr)
+        // Real-world modules of this family need INVON (the Wokwi virtual
+        // one doesn't) - without it the cleared-black frame renders white.
+        .invert_colors(ColorInversion::Inverted)
         .orientation(Orientation::new().rotate(Rotation::Deg270).flip_horizontal())
         .init(&mut FreeRtos)
         .map_err(|e| anyhow::anyhow!("display init failed: {e:?}"))?;
 
     log::info!("Display initialized");
+
+    // PANEL_TEST=1 build: paint red/blue stripes to verify GRAM rendering
+    if env!("PANEL_TEST") == "1" {
+        log::info!("PANEL TEST: stripes");
+        use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
+        let mut phase = false;
+        loop {
+            for (row, y) in (0..320).step_by(40).enumerate() {
+                let stripe_a = (row % 2 == 0) != phase;
+                let color = if stripe_a { Rgb565::RED } else { Rgb565::BLUE };
+                check(
+                    Rectangle::new(Point::new(0, y), Size::new(320, 40))
+                        .into_styled(PrimitiveStyle::with_fill(color))
+                        .draw(&mut display),
+                )?;
+            }
+            phase = !phase;
+            log::info!("stripes phase {phase}");
+            FreeRtos::delay_ms(4000);
+        }
+    }
 
     // 6.1: shared state between the fetch and UI tasks
     let state: SharedState = Arc::new(Mutex::new(AppState::Waiting));

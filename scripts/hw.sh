@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# Hardware path: build with production WiFi credentials, flash, and monitor.
+# Hardware path: build with production WiFi credentials, then flash.
 #
-# Usage: scripts/hw.sh [extra cargo args...]
+# Usage: scripts/hw.sh [--no-monitor] [extra cargo build args...]
+#   (default)     build + flash + attach the serial monitor (Ctrl+C to exit)
+#   --no-monitor  build + flash only, exit when done
 #
 # Credentials come from `toml.production` (see toml.production.example).
 # Create it once; it is gitignored. Simulation builds never read it.
@@ -12,6 +14,12 @@ cd "$(dirname "$0")/.."
 [ -f "$HOME/export-esp.sh" ] && . "$HOME/export-esp.sh"
 [ -d "$HOME/.local/python312/bin" ] && export PATH="$HOME/.local/python312/bin:$PATH"
 
+MONITOR=1
+if [ "${1:-}" = "--no-monitor" ]; then
+  MONITOR=0
+  shift
+fi
+
 if [ ! -f toml.production ]; then
   echo "error: toml.production not found." >&2
   echo "Create it from the template:" >&2
@@ -19,7 +27,12 @@ if [ ! -f toml.production ]; then
   exit 1
 fi
 
-# Build + flash + monitor. `runner = "espflash flash --monitor"` in
-# .cargo/config.toml makes `cargo run` do all three; --config gives the
-# fragment higher precedence than the Wokwi credentials in .cargo/config.toml.
-exec cargo run --release --config toml.production "$@"
+# Build with the production env fragment (highest cargo config precedence)
+cargo build --release --config toml.production "$@"
+ELF=target/xtensa-esp32-espidf/release/sp32-demo1
+
+if [ "$MONITOR" = 1 ]; then
+  exec espflash flash --monitor "$ELF"
+else
+  exec espflash flash "$ELF"
+fi

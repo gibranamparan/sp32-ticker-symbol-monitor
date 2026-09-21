@@ -13,3 +13,5 @@ build-std = ["std", "panic_abort"]
 MCU = "esp32"
 WIFI_SSID = "Wokwi-GUEST"
 WIFI_PASS = ""
+FETCH_INTERVAL_SECS = "10"
+PANEL_TEST = "0"

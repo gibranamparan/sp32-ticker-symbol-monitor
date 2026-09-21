@@ -31,7 +31,7 @@ Greenfield repo. Hardware: ESP-WROOM-32E module (classic ESP32, Xtensa LX6 dual-
 
 7. **Task layout:** FreeRTOS task A = display/UI; task B = fetch loop (WiFi connect → fetch → signal UI → sleep 10 s), communicating via a shared value + state (e.g. `Arc<Mutex<AppState>>` or a channel). Error states are drawn by the UI task, so network hiccups never corrupt rendering.
 
-8. **Config via env/`sdkconfig.defaults`:** WiFi SSID/password and any display tweaks come from environment variables at build time (`esp-idf` convention) so the same binary works for Wokwi (gateway WiFi) and home hardware by changing config, not code.
+8. **Config via env/`sdkconfig.defaults`:** WiFi SSID/password and the fetch refresh interval (`FETCH_INTERVAL_SECS`, default 10 s) come from environment variables at build time (`esp-idf` convention) so the same binary works for Wokwi (gateway WiFi) and home hardware by changing config, not code.
 
 ## Risks / Trade-offs
 

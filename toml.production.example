@@ -13,3 +13,6 @@
 [env]
 WIFI_SSID = "your-home-ssid"
 WIFI_PASS = "your-wpa2-password"
+
+# Optional overrides, e.g. a slower cadence when on battery:
+# FETCH_INTERVAL_SECS = "60"
