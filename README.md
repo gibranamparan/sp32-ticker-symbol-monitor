@@ -74,7 +74,7 @@ Build, flash, and monitor over USB — with those credentials overriding the Wok
 
 This is the only path that reads `toml.production` (passed to cargo as a `--config` fragment, which takes precedence over `.cargo/config.toml`). Simulation builds (`scripts/sim.sh`, plain `cargo build`) always use `WIFI_SSID`/`WIFI_PASS` from `.cargo/config.toml` (`Wokwi-GUEST`). A shell-exported `WIFI_SSID`/`WIFI_PASS` overrides everything (cargo `[env]` semantics).
 
-`FETCH_INTERVAL_SECS` (default `10`, seconds between price refreshes) follows the same precedence: set it in `toml.production` or the shell to change the cadence for a given build.
+`FETCH_INTERVAL_SECS` (default `60`, seconds between price refreshes) follows the same precedence: set it in `toml.production` or the shell to change the cadence for a given build.
 
 ## Layout
 

@@ -29,9 +29,9 @@ Greenfield repo. Hardware: Waveshare E-Paper ESP32 Driver Board Rev 3 (ESP32-WRO
 
 6. **TLS trust: embed the relevant root CA** — currently the self-signed GTS Root R1 (pki.goog), trust anchor for the RSA chain (`coinbase.com` ← GTS WR1) that Cloudflare serves to RSA-only clients. Update (during apply): the TLS client is pinned to RSA suites (`CONFIG_MBEDTLS_KEY_EXCHANGE_ECDHE_ECDSA is not set`) because the classic ESP32 has no ECC accelerator and the Wokwi sim's emulated CPU is ~100x slower than silicon — a software-ECDSA handshake (~16 sim-seconds) exceeds Cloudflare's ~13 s handshake timeout, while RSA verification rides the hardware MPI and completes in ~4 sim-seconds. (`MBEDTLS_ECDSA_C` itself is force-selected by the WiFi component and cannot be compiled out.) The PEM file keeps a trailing NUL byte for `X509::pem_until_nul`. If Coinbase rotates CAs, update the embedded cert.
 
-7. **Task layout:** FreeRTOS task A = display/UI (e-paper redraw + refresh only on content change); task B = fetch loop (WiFi connect → fetch → signal UI → sleep 10 s), communicating via a shared value + state (e.g. `Arc<Mutex<AppState>>` or a channel). Error states are drawn by the UI task, so network hiccups never corrupt rendering.
+7. **Task layout:** FreeRTOS task A = display/UI (e-paper redraw + refresh only on content change); task B = fetch loop (WiFi connect → fetch → signal UI → sleep 60 s), communicating via a shared value + state (e.g. `Arc<Mutex<AppState>>` or a channel). Error states are drawn by the UI task, so network hiccups never corrupt rendering.
 
-8. **Config via env/`sdkconfig.defaults`:** WiFi SSID/password and the fetch refresh interval (`FETCH_INTERVAL_SECS`, default 10 s) come from environment variables at build time (`esp-idf` convention) so the same binary works for Wokwi (gateway WiFi) and home hardware by changing config, not code.
+8. **Config via env/`sdkconfig.defaults`:** WiFi SSID/password and the fetch refresh interval (`FETCH_INTERVAL_SECS`, default 60 s) come from environment variables at build time (`esp-idf` convention) so the same binary works for Wokwi (gateway WiFi) and home hardware by changing config, not code.
 
 ## Risks / Trade-offs
 
@@ -39,7 +39,7 @@ Greenfield repo. Hardware: Waveshare E-Paper ESP32 Driver Board Rev 3 (ESP32-WRO
 - [Xtensa cold builds are slow (~1 min+), ESP-IDF download is large] → acceptable one-time cost; warm incremental builds are fine
 - [TLS heap pressure on classic ESP32 (~520 KB RAM)] → response payload is ~100 bytes; keep reqwest buffers minimal; if tight, drop to raw `esp-mbedtls` HTTPS later without changing specs
 - [Coinbase CA rotation breaks pinned root] → error state is visible on screen; update embedded cert is a one-line config change
-- [Wokwi sim time ≠ real time] → 10 s refresh cadence is unaffected in practice; verify interval on real hardware during flashing phase
+- [Wokwi sim time ≠ real time] → 60 s refresh cadence is unaffected in practice; verify interval on real hardware during flashing phase
 - [E-paper refresh wear/ghosting from frequent full refreshes] → firmware refreshes only when content changes; partial refresh (`update_partial_frame` + `RefreshLut::Quick`) available as a later optimization; FETCH_INTERVAL_SECS configurable if cadence must drop
 - [`epd-waveshare` git-master dependency (the plain-2.7 module is unreleased)] → pin the revision in Cargo.lock; small, self-contained driver if we ever need to vendor it
 - [E-paper `BUSY` blocking in simulation (no panel to answer)] → hold BUSY idle in `diagram.json`; hardware verifies real busy timing

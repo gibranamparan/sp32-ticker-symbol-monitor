@@ -31,11 +31,11 @@ The firmware SHALL fetch the current BTC-USD spot price from the Coinbase public
 - **THEN** the firmware reports the failure state to the display capability and keeps its last known price unchanged
 
 ### Requirement: Periodic refresh
-The firmware SHALL refresh the spot price every 10 seconds while running.
+The firmware SHALL refresh the spot price every 60 seconds while running.
 
 #### Scenario: Steady-state refresh
 - **WHEN** the firmware has been running for multiple minutes
-- **THEN** a new price fetch is initiated at approximately 10-second intervals
+- **THEN** a new price fetch is initiated at approximately 60-second intervals
 
 #### Scenario: Refresh after failure
 - **WHEN** a fetch attempt fails

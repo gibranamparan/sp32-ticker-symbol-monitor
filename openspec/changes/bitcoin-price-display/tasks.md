@@ -33,7 +33,7 @@
 ## 6. Application loop
 
 - [x] 6.1 Define shared app state (current price / error state) between fetch and UI tasks
-- [x] 6.2 Implement the fetch task: connect → fetch → update state → sleep 10 s → repeat
+- [x] 6.2 Implement the fetch task: connect → fetch → update state → sleep 60 s → repeat
 - [x] 6.3 Implement the UI task: waiting state at startup, big price on success, error state on failure with no known price, atomic full-frame redraws
 - [x] 6.4 End-to-end run in Wokwi: price from Coinbase appears on the virtual display and updates
 
@@ -41,7 +41,7 @@
 
 - [ ] 7.1 Attach the GDEY027T91 panel to the driver board's e-paper flex connector and set the pixel-config switch to the position matching the panel
 - [ ] 7.2 Flash the same binary; verify the waiting/price/error screens render on the physical e-paper (orientation, contrast, legibility)
-- [ ] 7.3 Verify WiFi credentials config change and the 10 s refresh cadence on real hardware
+- [ ] 7.3 Verify WiFi credentials config change and the 60 s refresh cadence on real hardware
 
 ## 8. E-paper migration
 
