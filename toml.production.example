@@ -14,5 +14,9 @@
 WIFI_SSID = "your-home-ssid"
 WIFI_PASS = "your-wpa2-password"
 
+# Display timezone as a UTC offset (required configuration; the build fails if
+# this variable is missing entirely). Forms: UTC, UTC-6, UTC+5:30, -6, +05:30.
+TIMEZONE = "UTC-6"
+
 # Optional overrides, e.g. a faster cadence (default is 60 s):
 # FETCH_INTERVAL_SECS = "10"

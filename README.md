@@ -57,6 +57,17 @@ The GDEY027T91 hangs off the driver board's fixed e-paper connector — no exter
 
 Panel bring-up pattern (stripes, one full refresh): build with `PANEL_TEST=1`, e.g. `PANEL_TEST=1 ./scripts/hw.sh`.
 
+## UI
+
+The ticker screen is designed wireframe-first: `wireframes/wireframe.html` is the design reference and the firmware mirrors it.
+
+- Three equal-height rows: (1) grayscale logo + `BTC/USD` centered as a group, (2) price centered horizontally and bottom-aligned in its row, (3) last-update timestamp end-aligned and bottom-aligned.
+- Typography: `h1` price = 24 pt profont doubled (≈48 px), `h2` pair label = 24 pt, body (`1em`) = 12 pt.
+- The last-update time is real time synchronised via SNTP (clock kept in UTC) and displayed in the configured timezone as `dd-MMM-yyyy HH:mm`; before the clock syncs the frame shows `--` instead of a fabricated time.
+- The logo is a 35×35 1-bit bitmap generated from the SVG asset: `.embuild/espressif/python_env/idf5.5_py3.12_env/bin/python scripts/convert-logo.py` (requires `cairosvg` in the IDF venv).
+
+To view the wireframe: open `wireframes/wireframe.html` in a browser, or serve the repo locally (e.g. `python3 -m http.server`) and open it over HTTP.
+
 ## Flash to hardware
 
 Create your credentials file once (gitignored, never committed):
@@ -76,10 +87,14 @@ This is the only path that reads `toml.production` (passed to cargo as a `--conf
 
 `FETCH_INTERVAL_SECS` (default `60`, seconds between price refreshes) follows the same precedence: set it in `toml.production` or the shell to change the cadence for a given build.
 
+`TIMEZONE` is the display timezone as a UTC offset (`UTC`, `UTC-6`, `UTC+5:30`, `-6`, `+05:30`) and is **required** — the build fails if the variable is missing entirely, and the firmware refuses to start on a malformed value. The clock itself stays UTC; the offset is applied to the on-screen timestamp only. Repo default: `UTC-6` (see `.cargo/config.toml`).
+
 ## Layout
 
-- `src/main.rs` — firmware: WiFi connect, e-paper UI task (refresh on content change), Coinbase fetch task (shared state via `Arc<Mutex<AppState>>`)
-- `price/` — pure-std crate: spot-response parsing (`serde_json`) + `$67,432` formatting; unit-tested on the host
+- `src/main.rs` — firmware: WiFi connect, SNTP clock, e-paper UI task (three-row frame, refresh on content change), Coinbase fetch task (shared state via `Arc<Mutex<AppState>>`)
+- `src/logo.rs` — generated 1-bit Bitcoin logo bitmap (see `scripts/convert-logo.py`)
+- `wireframes/` — the HTML design reference + logo assets
+- `price/` — pure-std crate: spot-response parsing (`serde_json`), `$67,432` formatting, and UTC `dd-MMM-yyyy HH:mm` timestamps; unit-tested on the host
 - `price/tests/fixtures/spot_price.json` — recorded real API response used by the tests
 - `certs/coinbase-root-ca.pem` — embedded TLS trust anchor (GTS Root R1, self-signed, from pki.goog); keep the trailing NUL byte — `X509::pem_until_nul` requires it
 - `scripts/` — `prepare-wokwi.sh` (build + flash-image refresh), `sim.sh` (one-command simulation), `hw.sh` (production build + flash)

@@ -39,9 +39,9 @@
 
 ## 7. Hardware bring-up (e-paper)
 
-- [ ] 7.1 Attach the GDEY027T91 panel to the driver board's e-paper flex connector and set the pixel-config switch to the position matching the panel
+- [x] 7.1 Attach the GDEY027T91 panel to the driver board's e-paper flex connector and set the pixel-config switch to the position matching the panel
 - [ ] 7.2 Flash the same binary; verify the waiting/price/error screens render on the physical e-paper (orientation, contrast, legibility)
-- [ ] 7.3 Verify WiFi credentials config change and the 60 s refresh cadence on real hardware
+- [x] 7.3 Verify WiFi credentials config change and the 60 s refresh cadence on real hardware
 
 ## 8. E-paper migration
 

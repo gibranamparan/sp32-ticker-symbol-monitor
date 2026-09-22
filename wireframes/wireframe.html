@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<!-- Static wireframe of the ticker screen (design reference for the e-paper firmware).
+     Panel: 264x176 landscape, rendered here at 3x. Font mapping: 1em = 12px panel
+     (36px here), h2 = 24px panel (2em), h1 = 48px panel (4em). Monospace approximates
+     the device's bitmap font. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ticker wireframe — 264x176 e-paper</title>
+<style>
+  :root {
+    --scale: 3;
+    --em: calc(12px * var(--scale));
+    --h2: calc(24px * var(--scale));
+    --h1: calc(48px * var(--scale));
+    --panel-w: calc(264px * var(--scale));
+    --panel-h: calc(176px * var(--scale));
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #d9d9d9;
+    font-family: "Courier New", Courier, monospace;
+  }
+
+  .panel {
+    width: var(--panel-w);
+    height: var(--panel-h);
+    background: #ffffff;
+    color: #000000;
+    border: 2px solid #666666;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .row {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    padding: 0 calc(8px * var(--scale));
+    min-height: 0;
+  }
+
+  .row-pair { justify-content: center; gap: calc(10px * var(--scale)); }
+  .row-center { justify-content: center; align-items: end; }
+  .row-end { justify-content: flex-end; align-items: flex-end; padding-right: calc(20px * var(--scale)); padding-bottom: calc(4px * var(--scale)); }
+
+  .logo {
+    height: calc(35px * var(--scale));
+    width: auto;
+    display: block;
+  }
+
+  h2, h1, .meta {
+    margin: 0;
+    font-weight: normal;
+    line-height: 1;
+  }
+
+  h2 { font-size: var(--h2); }
+  h1 { font-size: var(--h1); }
+  .meta { font-size: var(--em); }
+</style>
+</head>
+<body>
+  <div class="panel">
+    <div class="row row-pair">
+      <img class="logo" src="assets/bitcoin-logo-gray.svg" alt="Bitcoin logo">
+      <h2>BTC/USD</h2>
+    </div>
+    <div class="row row-center">
+      <h1>$86,734</h1>
+    </div>
+    <div class="row row-end">
+      <span class="meta">21-Sep-2026 20:06</span>
+    </div>
+  </div>
+</body>
+</html>
